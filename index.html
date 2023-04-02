@@ -25,6 +25,15 @@
         drop a single JavaScript/<wbr>CSS file with an inline source map comment, or a JavaScript/<wbr>CSS file and a separate
         source map file together.</p>
       <p>Or you can <button id="loadExample">Load an example</button> to play around with the visualization.</p>
+      <div style="display: flex; gap: 16px;">
+        <label>column type:</label>
+        <select id="col-type" style="width: unset; flex-grow: 1;">
+          <option value="ucs2">UCS-2</option>
+          <option value="unicode">Unicode</option>
+        </select>
+        <label>line end regexp:</label>
+        <input id="line-end" type="text" style="flex-grow: 1;" value="/\r\n|\r|\n/g">
+      </div>
       <div id="errorText"></div>
       <noscript>This app requires JavaScript to work. Please enable JavaScript and reload the page.</noscript>
     </section>

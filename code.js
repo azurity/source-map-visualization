@@ -37,6 +37,7 @@
   };
 
   uploadFiles.onclick = () => {
+    updateConfig();
     if (filesInput) document.body.removeChild(filesInput);
     filesInput = document.createElement('input');
     filesInput.type = 'file';
@@ -48,6 +49,7 @@
   };
 
   loadExample.onclick = () => {
+    updateConfig();
     finishLoading(exampleJS, exampleMap);
   };
 
@@ -615,15 +617,29 @@
   let generatedTextArea;
   let hover = null;
 
+  let columnType = 0;
+  let lineEndRegexp = null;
+  function updateConfig() {
+    let colType = document.getElementById('col-type').value;
+    if (colType == 'ucs2') {
+      columnType = 0;
+    } else if (colType == 'unicode') {
+      columnType = 1;
+    }
+    let lineEnd = document.getElementById('line-end').value.split('/');
+    lineEndRegexp = new RegExp(lineEnd.slice(1, lineEnd.length - 1).join('/'), lineEnd[lineEnd.length - 1]);
+  }
+
   function splitTextIntoLinesAndRuns(text) {
     c.font = monospaceFont;
     const spaceWidth = c.measureText(' ').width;
     const spacesPerTab = 2;
-    const lines = text.split(/\r\n|\r|\n/g);
+    const lines = text.split(lineEndRegexp);
     const unicodeWidthCache = new Map();
     let longestLineInColumns = 0;
 
     for (let line = 0; line < lines.length; line++) {
+      let widthOffset = 0;
       let raw = lines[line];
       let runs = [];
       let i = 0;
@@ -631,6 +647,7 @@
       let column = 0;
 
       while (i < n) {
+        let lastWidthOffset = widthOffset;
         let startIndex = i;
         let startColumn = column;
         let whitespace = 0;
@@ -672,6 +689,8 @@
             // points that span two UTF-16 code units.
             if (i < n && c1 >= 0xD800 && c1 <= 0xDBFF && (c2 = raw.charCodeAt(i)) >= 0xDC00 && c2 <= 0xDFFF) {
               i++;
+              if (columnType == 1)
+                widthOffset++;
             }
 
             // This contains some logic to handle more complex emoji such as "👯‍♂️"
@@ -739,7 +758,7 @@
 
         runs.push({
           whitespace,
-          startIndex, endIndex: i,
+          startIndex: startIndex - lastWidthOffset, endIndex: i - widthOffset,
           startColumn, endColumn: column,
           isSingleChunk,
           text:
@@ -1600,7 +1619,11 @@
       };
 
       // Extract the length-prefixed data
-      let hash = atob(location.hash.slice(1));
+      let [ columnTypeStr, lineEndStr, hashStr ] = location.hash.slice(1).split(';');
+      columnType = parseInt(columnTypeStr);
+      let lineEnd = atob(lineEndStr).split('/');
+      lineEndRegexp = new RegExp(lineEnd.slice(0, lineEnd.length - 1).join('/'), lineEnd[lineEnd.length - 1]);
+      let hash = atob(hashStr);
       const code = readBuffer();
       const map = readBuffer();
       if (hash !== '') throw 'Unexpected extra data';
@@ -1641,7 +1664,7 @@
       if (finalLength >= kMaxURLDisplayChars) throw 'URL too long';
 
       // Only pay the cost of building the string now that we know it'll work
-      const hash = '#' + btoa(`${codeLength}${code}${mapLength}${map}`);
+      const hash = '#' + `${columnType};${btoa(lineEndRegexp.source)};` + btoa(`${codeLength}${code}${mapLength}${map}`);
       if (location.hash !== hash) {
         history.pushState({}, '', hash);
       }
